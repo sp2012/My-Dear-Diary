@@ -1,0 +1,453 @@
+directive strict=on
+
+load regex
+
+
+/////////////////////////Functions///////////////////////////
+
+
+import from dbi
+
+function prototype_table()
+
+def table = Table([ "line_of_Text" ])
+ 
+
+    return bless([
+      "version" => "2.0",
+      "table" =>table,
+      "type" => function ()
+	  > "Please enter your text:"
+	  def line = input()
+          if line.len() == 0: raise "No characters entered!"          
+          return line
+      end
+
+
+ 
+      ])
+end
+
+
+function load_data (load_date, type)
+
+
+
+def query = ""
+
+	if type == "entries"
+	
+		query = '
+				 SELECT 
+				 date,
+				 text,
+				 id
+
+				 FROM entries
+				 WHERE id = (SELECT MIN(id) from entries AS e where e.date = entries.date)
+				 GROUP BY 
+				 date
+				 
+				 ;
+				 
+				 '
+	
+	else
+
+
+	 load_date = convertDate(load_date)
+	
+		query = query.join('
+							SELECT
+							
+							date,
+							text
+
+							FROM entries
+
+							WHERE
+
+							date=',
+
+							"'",	
+							
+							load_date,
+
+							"';"
+							)	
+	
+	end
+
+
+def error
+
+	try
+		def connection_db = dbi.connect( "sqlite3:db=diary.db" )	
+
+
+		def result_set = connection_db.query(query)
+
+
+		def result_row = [ => ]
+	
+				
+		def dataToReturn = []
+
+			while result_set.fetch(result_row)
+	
+				def date = revertDate( result_row[ "date" ] )
+				def entry = result_row[ "text" ]  
+		
+				def line_result = ""
+	  
+				line_result = line_result.join(date, " ", entry)
+
+				dataToReturn +=  [ line_result ] 
+      
+
+			end   
+		
+   
+		result_set.close()
+		connection_db.close()
+	
+	catch dbi.DBIError in error
+		> "DBI failed: "
+		> error
+	end
+
+
+ 	
+		
+	return dataToReturn
+	 
+	
+end
+
+
+function save_entry(table, save_date)
+
+save_date = convertDate(save_date)
+
+if table.len() == 0: raise "Your entry is empty. It cannot be saved. Write something first."
+
+		 def error
+
+		 def query_delete = ""	
+			
+		 query_delete = query_delete.join("DELETE FROM entries WHERE date='", save_date , "'; ")	
+		 
+		 	try
+					
+				def connection_db = dbi.connect( "sqlite3:db=diary.db" )	
+
+
+				connection_db.query(query_delete)		
+   
+					
+				connection_db.close()
+	
+			catch dbi.DBIError in error
+				> "DBI failed: "
+				> error
+			end
+		 
+
+         def row_table
+         
+         for row_table in table
+            
+            > row_table[0]
+			
+			def query = ""
+
+			query = query.join("INSERT INTO entries (date, text) VALUES ('", save_date ,"','", row_table[0], "'); ")
+
+				try
+					
+					def connection_db = dbi.connect( "sqlite3:db=diary.db" )	
+
+
+					connection_db.query(query)		
+   
+					
+					connection_db.close()
+	
+				catch dbi.DBIError in error
+					> "DBI failed: "
+					> error
+				end
+			
+			
+            
+         end
+
+
+end
+
+function reg_date(test_date)
+
+// Regex matches real dd/mm/yyyy dates, including leap years
+def date_regex = Regex( '^(((0[1-9]|[12]\d|3[01])\/(0[13578]|1[02])\/((19|[2-9]\d)\d{2}))|((0[1-9]|[12]\d|30)\/(0[13456789]|1[012])\/((19|[2-9]\d)\d{2}))|((0[1-9]|1\d|2[0-8])\/02\/((19|[2-9]\d)\d{2}))|(29\/02\/((1[6-9]|[2-9]\d)(0[48]|[2468][048]|[13579][26])|((16|[2468][048]|[3579][26])00))))$' )
+ 
+   if date_regex.match( test_date )
+       
+      > "Date accepted."
+       
+   else
+      raise "No such a date."
+   end
+
+end
+
+function convertDate(date)
+
+ 
+	def date_split = date.split( "/" )
+
+	def day = date_split[0]
+
+	def month = date_split[1]
+
+	def year = date_split[2]
+	
+	def new_date = year + "/" + month + "/" + day
+	
+	return new_date
+
+
+end
+
+function revertDate(date)
+
+	def date_split = date.split( "/" )
+	
+	def year = date_split[0]
+	
+	def month = date_split[1]
+	
+	def day = date_split[2]
+	
+	def new_date = day + "/" + month + "/" + year
+	
+	return new_date
+	
+
+end
+
+////////////////////////End Of Functions/////////////////////
+
+def sqlite_text_data = ""
+
+sqlite_text_data = "U1FMaXRlIGZvcm1hdCAzAAQAAQEAQCAgAAAAdQAAAAAAAAADAAAAAgAAAAEAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA0AAAABA6AAA6AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA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AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABBCBAAhETA5LzExLzIwMTIwOQ=="
+ 
+
+if fileType("diary.db")  == -1
+
+
+	> "Database file not found. Creating database."
+
+	def file_stream = OutputStream( "diary.db")
+	
+	def sqlite_binary_data = Base64.decmb( sqlite_text_data )
+	
+	> sqlite_binary_data
+	
+	file_stream.write( sqlite_binary_data )
+	
+	file_stream.close()
+	
+	 
+
+	
+end
+
+ 
+
+ 
+def protoTable = prototype_table()
+
+>
+
+> "My Dear Diary."
+
+> 
+
+> "Version: ", protoTable.version
+
+>
+
+> "Enter commands, to see a list with available commands."
+
+>
+
+def error
+
+while true
+   
+   try 
+   
+      def line = protoTable.type()
+      
+	  if line == "commands"
+	  
+	    >
+		> "Commands are: commands, clear, exit, save DD/MM/YYYY, load DD/MM/YYYY, load entries, display ."
+		>
+	  
+	  
+	  elif line == 'clear'
+	  
+		def protoTable = prototype_table()
+	  
+	    >
+		> "Cleared entry."
+		>
+	  
+      elif line == "exit"
+
+	     >
+	     > "Exited."
+	     break           
+      
+      elif line.startsWith("save")
+	  
+	  	try
+            def save_split = line.split (" ")                  
+            
+            if len(save_split) != 2: raise "Invalid arguments given to save."
+			
+			reg_date(save_split[1])
+         
+				save_entry(protoTable.table, save_split[1])
+		 
+		        >
+				> "Saved."    
+				>
+				
+	     catch StringType in error       
+            > "Error: ", error
+         end
+     
+      
+      elif line.startsWith( "load" )
+   
+		try
+            def load_split = line.split (" ")                  
+            
+            if len(load_split) != 2: raise "Invalid arguments given to load."
+            
+			def dataReturned = []
+			
+			if line == "load entries"
+			
+            
+				dataReturned = load_data(load_split[1], "entries")               
+				
+			
+			else
+			
+				reg_date(load_split[1])
+			
+				dataReturned = load_data(load_split[1], "")			
+			
+			end
+			
+            
+            if dataReturned == []: raise "No data for that date."
+            
+            def row_load
+            
+            def row_load2
+            
+            def index_load = 1
+            
+			>
+			
+			for row_load in dataReturned
+               
+			   
+			    > row_load
+				
+				if index_load % 5 == 0
+				
+					> "Press A Key And Enter To Continue Showing Your Entry."
+					input()				
+				
+				end
+
+				index_load++
+               
+            end
+            
+ 
+			
+			>
+			
+         catch StringType in error       
+            > "Error: ", error
+         end
+      
+
+	  elif line == "display"
+	  
+	           > "--------Data entered.------- "
+         
+         def indexForDiaryShow = 1
+         
+         def row_table
+         
+         for row_table in protoTable.table
+            
+            > indexForDiaryShow, ". ", row_table[0]
+			
+			if indexForDiaryShow % 5 == 0
+			
+				> "Press A Key And Enter To Continue Showing Your Entry."
+				input()
+				
+			end
+            
+            indexForDiaryShow++            
+            
+         end
+         
+         > "--------Data finished.------- "
+	  
+	  
+      else
+         
+         protoTable.table.append( [ line ] )
+         
+         
+         > "--------Data entered.------- "
+         
+         def indexForDiaryShow = 1
+         
+         def row_table
+         
+         for row_table in protoTable.table
+            
+            > indexForDiaryShow, ". ", row_table[0]
+			
+			if indexForDiaryShow % 5 == 0
+			
+				> "Press A Key And Enter To Continue Showing Your Entry."
+				input()
+				
+			end
+            
+            indexForDiaryShow++            
+            
+         end
+         
+         > "--------Data finished.------- "
+         
+      end
+      
+      
+   catch StringType in error
+      > "Error: ", error
+   end
+   
+end
